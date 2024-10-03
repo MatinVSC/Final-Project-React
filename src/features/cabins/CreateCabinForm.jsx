@@ -1,7 +1,6 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
-import { createCabin } from "../../services/apiCabins";
-import toast from "react-hot-toast";
+import { useCreateCabin } from "../../hooks/useCreateCabin";
+import { useEditCabin } from "../../hooks/useEditCabin";
 
 import Input from "../../ui/Input";
 import Form from "../../ui/Form";
@@ -10,48 +9,64 @@ import FileInput from "../../ui/FileInput";
 import Textarea from "../../ui/Textarea";
 import FormRow from "../../ui/FormRow";
 
-function CreateCabinForm() {
-  const { register, handleSubmit, reset, getValues, formState } = useForm();
-  const { errors } = formState
-  const queryClient = useQueryClient();
 
-  const { mutate, isLoading } = useMutation({
-    mutationFn: createCabin,
-    onSuccess: () => {
-      toast.success('New cabin successfully created');
-      queryClient.invalidateQueries({
-        queryKey: ['cabins']
-      })
-      reset()
-    },
-    onError: err => toast.error(err.message)
+function CreateCabinForm({ cabinToEdit = {}, onCloseModal }) {
+  const { isCreating, createCabin } = useCreateCabin();
+  const { isEditing, editCabin } = useEditCabin();
+  const isWorking = isCreating || isEditing;
+
+  const { id: editId, ...editValues } = cabinToEdit;
+  const isEditSession = Boolean(editId);
+
+  const { register, handleSubmit, reset, getValues, formState } = useForm({
+    defaultValues: isEditSession ? editValues : {},
   });
+  const { errors } = formState
+
 
   function onSubmit(data) {
-    mutate({ ...data, image: data.image[0] });
+    const image = typeof data.image === 'string' ? data.image : data.image[0];
+
+    if (isEditSession) editCabin({ newCabinData: { ...data, image }, id: editId },
+      {
+        onSuccess: (data) => {
+          reset();
+          onCloseModal?.();
+        },
+      }
+    );
+    else createCabin({ ...data, image: image },
+      {
+        onSuccess: (data) => {
+          reset();
+          onCloseModal?.();
+        },
+      }
+    );
   }
 
-  function onError() {
-
-  }
+  function onError(errors) {
+    console.log('Failed validation!', errors);
+  };
 
   return (
-    <Form onSubmit={handleSubmit(onSubmit, onError)}>
-
-      <FormRow lable='Cabin name'
+    <Form onSubmit={handleSubmit(onSubmit, onError)}
+      type={onCloseModal ? 'modal' : 'regular'}
+    >
+      <FormRow label='Cabin name'
         error={errors?.name?.message}>
         <Input
           type="text"
           id="name"
-          disabled={isLoading}
+          disabled={isWorking}
           {...register('name', {
             required: 'This field is required'
           })} />
       </FormRow>
 
-      <FormRow lable='MaxCapacity'
+      <FormRow label='MaxCapacity'
         error={errors?.maxCapacity?.message}>
-        <Input type="number" id="maxCapacity" disabled={isLoading} {...register('maxCapacity', {
+        <Input type="number" id="maxCapacity" disabled={isWorking} {...register('maxCapacity', {
           required: 'This feild is required',
           min: {
             value: 1,
@@ -60,9 +75,9 @@ function CreateCabinForm() {
         })} />
       </FormRow>
 
-      <FormRow lable='RegularPrice'
+      <FormRow label='RegularPrice'
         error={errors?.regularPrice?.message}>
-        <Input type="number" id="regularPrice" disabled={isLoading} {...register('regularPrice', {
+        <Input type="number" id="regularPrice" disabled={isWorking} {...register('regularPrice', {
           required: 'This feild is required',
           min: {
             value: 1,
@@ -71,29 +86,29 @@ function CreateCabinForm() {
         })} />
       </FormRow>
 
-      <FormRow lable='Discount'
+      <FormRow label='Discount'
         error={errors?.discount?.message}>
-        <Input type="number" id="discount" disabled={isLoading} defaultValue={0} {...register('discount', {
+        <Input type="number" id="discount" disabled={isWorking} defaultValue={0} {...register('discount', {
           required: 'This feild is required',
           validate: (value) => getValues().regularPrice >= value || 'Discount should be less then regular price'
         })} />
       </FormRow>
 
-      <FormRow lable='Description for website'
+      <FormRow label='Description for website'
         error={errors?.description?.message}>
-        <Textarea type="number" id="description" disabled={isLoading} defaultValue="" {...register('description', { required: 'This feild is required' })} />
+        <Textarea type="number" id="description" disabled={isWorking} defaultValue="" {...register('description', { required: 'This feild is required' })} />
       </FormRow>
 
-      <FormRow lable='Cabin photo'>
+      <FormRow label='Cabin photo'>
         <FileInput id="image" accept="image/*"
-          {...register('image', { required: 'This feild is required' })} />
+          {...register('image', { required: isEditSession ? false : 'This feild is required' })} />
       </FormRow>
 
       <FormRow>
-        <Button variation="secondary" type="reset">
+        <Button onClick={() => onCloseModal?.()} variation="secondary" type="reset">
           Cancel
         </Button>
-        <Button disabled={isLoading}>Add cabin</Button>
+        <Button disabled={isWorking}>{isEditSession ? 'Edit cabin' : 'Add cabin'}</Button>
       </FormRow>
     </Form>
   );
