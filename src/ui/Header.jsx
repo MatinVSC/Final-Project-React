@@ -1,17 +1,22 @@
 import styled from "styled-components";
+import HeaderMunu from "./HeaderMunu";
+import UserAvatar from '../features/authentication/UserAvatar';
 
 const StyledHeader = styled.header`
     background-color  : var(--color-gray-0);
     padding: 1.2rem 4.8rem;
     border-bottom: 1px solid var(--color-grey-100);
+    display: flex;
+    gap: 2.4rem;
+    align-items: center;
+    justify-content: flex-end;
 `;
 
-function Sidebar () {
+export default function Sidebar() {
     return (
         <StyledHeader>
-            Header
+            <UserAvatar />
+            <HeaderMunu />
         </StyledHeader>
     )
 }
-
-export default Sidebar;
